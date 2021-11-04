@@ -3,41 +3,36 @@ import java.util.List;
 import java.util.Scanner;
 
 public class Application {
+
     public static void main(String[] args) {
-        // Комплектующие
-        // - Процессоры
-        // - - Intel
-        // - - AMD
-        // - ОЗУ
         EntityManagerFactory factory = Persistence.createEntityManagerFactory("main");
         // EntityManager - отвечает за взаимодействие с сущностями (выборка, запись, редактирование).
         EntityManager manager = factory.createEntityManager();
-        Integer categoryLevel = 0;
-        TypedQuery<Hierarchy> query = manager.createQuery("Select h from Hierarchy h", Hierarchy.class);
-        //query.setParameter(1, categoryLevel);
-        List<Hierarchy> hierarchies = query.getResultList();
-        String line = "- ";
-        // line.repeat(2), line.repeat(1), line
-        /*for (Hierarchy hier: hierarchies) {
-            System.out.println(line.repeat(hier.getLevel()) + hier.getCategoryName());
-        }*/
-        /*int n = 0;
-        String repeated = new String(new char[n]).replace("\0", line);*/
-       /* for (Hierarchy hier: hierarchies) {
-            // здесь делаем обнуление str, чтобы "- " не накапливались в str
-            String str = "";
-            for (int i = 0; i < hier.getLevel(); i++) {
-                str += line;
-            }
-            System.out.println(str + hier.getCategoryName());
-        }*/
+        // Чистка ненужного
+        // Создание [1]
+        // Перемещение [2]
+        // Удаление [3]
+        // Выберите действие: _
+        System.out.println("Создание [1]\nПеремещение [2]\nУдаление[3]\nВыберите действие: ");
+        Scanner scannerApp = new Scanner(System.in);
+        String answerIn = scannerApp.nextLine();
+        switch (answerIn) {
+            case "1":
+                creation();
+                break;
+            case "2":
+                displacement();
+                break;
+            case "3":
+                deletion();
+                break;
+        }
+    }
 
-        /*for (Hierarchy hier: hierarchies) {
-            for (int i = 0; i < hier.getLevel(); i++) {
-                System.out.print(line);
-            }
-            System.out.println(hier.getCategoryName());
-        }*/
+    private static void creation() {
+        EntityManagerFactory factory = Persistence.createEntityManagerFactory("main");
+        // EntityManager - отвечает за взаимодействие с сущностями (выборка, запись, редактирование).
+        EntityManager manager = factory.createEntityManager();
         // ДОБАВЛЕНИЕ ЭЛЕМЕНТА В КАТЕГОРИЮ
         // Запросить id категории внутри, которой нужно создать новую категорию
         // Название любой категории записываем через nextLine.
@@ -95,12 +90,134 @@ public class Application {
                 hierarchyNew.setLevel(0);
                 manager.persist(hierarchyNew);
                 manager.getTransaction().commit();
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 manager.getTransaction().rollback();
                 e.printStackTrace();
             }
         }
+    }
 
+    private static void displacement() {
+        EntityManagerFactory factory = Persistence.createEntityManagerFactory("main");
+        // EntityManager - отвечает за взаимодействие с сущностями (выборка, запись, редактирование).
+        EntityManager manager = factory.createEntityManager();
+        // Перемещение одной категории в другую, одного элемента/группы элементов в другую группу.
+        // План перемещения:
+        // 1) Левый и правый ключи сделать отрицательными у перемещаемого(ых) категорий;
+        // 2) Убрать, образовавшийся между ключами, промежуток;
+        // 3) Выделение места для перемещаемой категории;
+        // 4) Замена ключей перемещаемого объекта из отрицательных в корректные, т.е. положительные, что значит
+        //    произвести само перемещение;
+        // 5) Нужно не забывать поменять уровень перемещаемой категории.
+        // Если вводится 0, то нужно переместить всю категорию на нулевой уровень
+        Scanner scanner2 = new Scanner(System.in);
+        System.out.println("Введите id категорий, которую хотите переместить: ");
+        String IdIn2 = scanner2.nextLine();
+        Hierarchy categoryToMove = manager.find(Hierarchy.class, Long.parseLong(IdIn2));
+        System.out.println("Введите id категорий, куда нужно добавить элемент или ноль, чтобы перенести на нулевой уровень: ");
+        Hierarchy categoryNewPlace = manager.find(Hierarchy.class, Long.parseLong(IdIn2));
+        System.out.println(categoryToMove.getCategoryName() + "(" + categoryToMove.getLeftKey() + " " +
+                categoryToMove.getRightKey() + ")");
+        try {
+            manager.getTransaction().begin();
+            // 1)
+            Query query = manager.createQuery("update Hierarchy h set h.leftKey = -h.leftKey, h.rightKey = " +
+                    "-h.rightKey  where h.leftKey >= ?1 and h.rightKey <= ?2 ");
+            query.setParameter(1, categoryToMove.getLeftKey());
+            query.setParameter(2, categoryToMove.getRightKey());
+            query.executeUpdate();
+            // 2)
+            Query query2 = manager.createQuery("update Hierarchy h set h.leftKey = h.leftKey - ?1 " +
+                    "where h.leftKey > ?2");
+            query2.setParameter(1, (categoryToMove.getRightKey()-categoryToMove.getLeftKey())+1);
+            query2.setParameter(2, categoryToMove.getRightKey());
+            Query query3 = manager.createQuery("update Hierarchy h set h.rightKey = h.rightKey - ?1 " +
+                    "where h.rightKey > ?2");
+            query3.setParameter(1, (categoryToMove.getRightKey()-categoryToMove.getLeftKey())+1);
+            query3.setParameter(2, categoryToMove.getRightKey());
+            query2.executeUpdate();
+            query3.executeUpdate();
+            // 3)
+            if (Long.parseLong(IdIn2) != 0)
+            {
+                Query query4 = manager.createQuery("update Hierarchy h set h.rightKey = h.rightKey + ?1 where " +
+                        " h.rightKey >= " + categoryNewPlace.getRightKey());
+                query4.setParameter(1, (categoryToMove.getRightKey() - categoryToMove.getLeftKey()) + 1);
+                Query query5 = manager.createQuery("update Hierarchy h set h.leftKey = h.leftKey + ?2 where " +
+                        " h.leftKey > " + categoryNewPlace.getRightKey());
+                query5.setParameter(2, (categoryToMove.getRightKey() - categoryToMove.getLeftKey()) + 1);
+                query4.executeUpdate();
+                query5.executeUpdate();
+
+                // 4)
+                manager.refresh(categoryNewPlace);
+                Query query6 = manager.createQuery("update Hierarchy h set h.leftKey = (0 - h.leftKey + ?1), " +
+                        "h.rightKey = (0 - h.rightKey + ?1), h.level = h.level + ?2 where " +
+                        " h.leftKey < 0 ");
+                query6.setParameter(1, categoryNewPlace.getRightKey() - categoryToMove.getRightKey() - 1);
+                query6.setParameter(2, categoryNewPlace.getLevel() - categoryToMove.getLevel() + 1);
+                query6.executeUpdate();
+            }
+            else if (Long.parseLong(IdIn2) == 0) {
+                TypedQuery<Integer> query7 = manager.createQuery("Select max(h.rightKey) from Hierarchy h", Integer.class);
+                int newCategory = query7.getSingleResult();
+                Query query8 = manager.createQuery("update Hierarchy h set h.leftKey = (0 - h.leftKey + ?1), " +
+                        "h.rightKey = (0 - h.rightKey + ?1), h.level = h.level - ?2 where h.leftKey < 0 ");
+                query8.setParameter(1, newCategory-categoryToMove.getLeftKey() + 1);
+                query8.setParameter(2, categoryToMove.getLevel());
+                query8.executeUpdate();
+            }
+            manager.getTransaction().commit();
+        }
+        catch (Exception e) {
+            manager.getTransaction().rollback();
+            e.printStackTrace();
+        }
+    }
+
+    private static void deletion() {
+        EntityManagerFactory factory = Persistence.createEntityManagerFactory("main");
+        // EntityManager - отвечает за взаимодействие с сущностями (выборка, запись, редактирование).
+        EntityManager manager = factory.createEntityManager();
+        // Удаление категории из таблицы
+        // 1) Сперва удаляем элемент(ы), который(е) выбрали. 2) Затем удаляем ключи этих
+        // элементов.
+        Scanner scanner3 = new Scanner(System.in);
+        System.out.println("Введите id категории, которую нужно удалить: ");
+        String IdIn3 = scanner3.nextLine();
+        Hierarchy categoryToDelete = manager.find(Hierarchy.class, Long.parseLong(IdIn3));
+        System.out.println(categoryToDelete.getCategoryName() + " (" +
+                categoryToDelete.getLeftKey() + " " + categoryToDelete.getRightKey() + ")");
+        // использовать setParameter вместо конкатенации
+        try {
+            manager.getTransaction().begin();
+
+            Query query = manager.createQuery("delete from Hierarchy h where h.leftKey >= ?1 " +
+                    " and h.rightKey <= ?2 ");
+            query.setParameter(1, categoryToDelete.getLeftKey());
+            query.setParameter(2, categoryToDelete.getRightKey());
+            query.executeUpdate();
+
+            Query query2 = manager.createQuery("update Hierarchy h set h.leftKey = h.leftKey - ?1 where " +
+                    " h.leftKey > ?2 ");
+            /*Query query2 = manager.createQuery("update Hierarchy h set h.leftKey = ?1 where " +
+                    " h.leftKey > ?2 ");*/ // более топорный вариант верхнего кода query2
+            //query2.setParameter(1, categoryToDelete.getLeftKey()); [другой метод написания нижнего кода query2.setParameter]
+            query2.setParameter(1, (categoryToDelete.getRightKey()-categoryToDelete.getLeftKey())+1);
+            query2.setParameter(2, categoryToDelete.getRightKey());
+
+            Query query3 = manager.createQuery("update Hierarchy h set h.rightKey = h.rightKey - ?1" +
+                    " where h.rightKey > ?2 ");
+            query3.setParameter(1, (categoryToDelete.getRightKey()-categoryToDelete.getLeftKey())+1);
+            query3.setParameter(2, categoryToDelete.getRightKey());
+            query2.executeUpdate();
+            query3.executeUpdate();
+            manager.getTransaction().commit();
+
+        }
+        catch (Exception e) {
+            manager.getTransaction().rollback();
+            e.printStackTrace();
+        }
     }
 }
