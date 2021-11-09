@@ -3,34 +3,28 @@ import java.util.List;
 import java.util.Scanner;
 
 public class Application {
+    private static Scanner scanner = new Scanner(System.in);
+
+    private static EntityManagerFactory factory = Persistence.createEntityManagerFactory("main");
 
     public static void main(String[] args) {
-        EntityManagerFactory factory = Persistence.createEntityManagerFactory("main");
-        // EntityManager - отвечает за взаимодействие с сущностями (выборка, запись, редактирование).
-        EntityManager manager = factory.createEntityManager();
+
         // Чистка ненужного
         // Создание [1]
         // Перемещение [2]
         // Удаление [3]
         // Выберите действие: _
         System.out.println("Создание [1]\nПеремещение [2]\nУдаление[3]\nВыберите действие: ");
-        Scanner scannerApp = new Scanner(System.in);
-        String answerIn = scannerApp.nextLine();
+        String answerIn = scanner.nextLine();
         switch (answerIn) {
-            case "1":
-                creation();
-                break;
-            case "2":
-                displacement();
-                break;
-            case "3":
-                deletion();
-                break;
+            case "1" -> creation();
+            case "2" -> displacement();
+            case "3" -> deletion();
         }
     }
 
     private static void creation() {
-        EntityManagerFactory factory = Persistence.createEntityManagerFactory("main");
+
         // EntityManager - отвечает за взаимодействие с сущностями (выборка, запись, редактирование).
         EntityManager manager = factory.createEntityManager();
         // ДОБАВЛЕНИЕ ЭЛЕМЕНТА В КАТЕГОРИЮ
@@ -44,7 +38,7 @@ public class Application {
         // родительского элемента.
         // Затем нужно сделать отдельный запрос для изменения левого ключа любого элемента, который
         // больше правого ключа родительского ключа
-        Scanner scanner = new Scanner(System.in);
+
         System.out.println("Введите id категории, куда нужно добавить элемент либо ноль, чтобы создать новую категорию: ");
         String IdIn = scanner.nextLine();
         if (Long.parseLong(IdIn) != 0) {
@@ -52,19 +46,25 @@ public class Application {
             System.out.println(categoryToChange.getCategoryName() +
                     "(" + categoryToChange.getLeftKey() + " " +
                     categoryToChange.getRightKey() + ")");
-            Hierarchy hierarchyRow = new Hierarchy();
+
             try {
                 manager.getTransaction().begin();
-                Query query2 = manager.createQuery("update Hierarchy h set h.rightKey = h.rightKey + 2 " +
+                Query rightKeyQuery = manager.createQuery("update Hierarchy h set h.rightKey = h.rightKey + 2 " +
                         "where " + " h.rightKey >= " + categoryToChange.getRightKey());
-                Query query3 = manager.createQuery("update Hierarchy h set h.leftKey = h.leftKey + 2 " +
+                rightKeyQuery.executeUpdate();
+
+                Query leftKeyQuery = manager.createQuery("update Hierarchy h set h.leftKey = h.leftKey + 2 " +
                         "where " + "h.leftKey > " + categoryToChange.getRightKey());
-                hierarchyRow.setCategoryName("МЦСТ");
+                leftKeyQuery.executeUpdate();
+
+                Hierarchy hierarchyRow = new Hierarchy();
+                System.out.println("Введите название категории: ");
+                String categoryName = scanner.nextLine();
+                hierarchyRow.setCategoryName(categoryName);
                 hierarchyRow.setLeftKey(categoryToChange.getRightKey());
                 hierarchyRow.setRightKey(categoryToChange.getRightKey() + 1);
                 hierarchyRow.setLevel(categoryToChange.getLevel() + 1);
-                query2.executeUpdate();
-                query3.executeUpdate();
+
                 manager.persist(hierarchyRow);
                 manager.getTransaction().commit();
             } catch (Exception e) {
@@ -77,10 +77,11 @@ public class Application {
         else if (Long.parseLong(IdIn) == 0) {
             Hierarchy hierarchyNew = new Hierarchy();
             // команда max(h.rightKey) -> дает максимальное значение для правого ключа из таблицы hierarchy
-            TypedQuery<Integer> query7 = manager.createQuery("select max(h.rightKey) from Hierarchy h", Integer.class);
-            int newCategory = query7.getSingleResult();
+            TypedQuery<Integer> maxRightQuery = manager.createQuery("select max(h.rightKey) from Hierarchy h", Integer.class);
+            int newCategory = maxRightQuery.getSingleResult();
             try {
                 manager.getTransaction().begin();
+
                 System.out.println("Введите название новой категории: ");
                 String newName = scanner.nextLine();
                 hierarchyNew.setCategoryName(newName);
@@ -88,6 +89,7 @@ public class Application {
                 hierarchyNew.setRightKey(newCategory + 2);
                 //hierarchyNew.setLevel((int)Long.parseLong(IdIn));
                 hierarchyNew.setLevel(0);
+
                 manager.persist(hierarchyNew);
                 manager.getTransaction().commit();
             } catch (Exception e) {
@@ -98,7 +100,7 @@ public class Application {
     }
 
     private static void displacement() {
-        EntityManagerFactory factory = Persistence.createEntityManagerFactory("main");
+
         // EntityManager - отвечает за взаимодействие с сущностями (выборка, запись, редактирование).
         EntityManager manager = factory.createEntityManager();
         // Перемещение одной категории в другую, одного элемента/группы элементов в другую группу.
@@ -110,9 +112,9 @@ public class Application {
         //    произвести само перемещение;
         // 5) Нужно не забывать поменять уровень перемещаемой категории.
         // Если вводится 0, то нужно переместить всю категорию на нулевой уровень
-        Scanner scanner2 = new Scanner(System.in);
+
         System.out.println("Введите id категорий, которую хотите переместить: ");
-        String IdIn2 = scanner2.nextLine();
+        String IdIn2 = scanner.nextLine();
         Hierarchy categoryToMove = manager.find(Hierarchy.class, Long.parseLong(IdIn2));
         System.out.println("Введите id категорий, куда нужно добавить элемент или ноль, чтобы перенести на нулевой уровень: ");
         Hierarchy categoryNewPlace = manager.find(Hierarchy.class, Long.parseLong(IdIn2));
@@ -176,15 +178,13 @@ public class Application {
     }
 
     private static void deletion() {
-        EntityManagerFactory factory = Persistence.createEntityManagerFactory("main");
-        // EntityManager - отвечает за взаимодействие с сущностями (выборка, запись, редактирование).
+
         EntityManager manager = factory.createEntityManager();
         // Удаление категории из таблицы
         // 1) Сперва удаляем элемент(ы), который(е) выбрали. 2) Затем удаляем ключи этих
         // элементов.
-        Scanner scanner3 = new Scanner(System.in);
         System.out.println("Введите id категории, которую нужно удалить: ");
-        String IdIn3 = scanner3.nextLine();
+        String IdIn3 = scanner.nextLine();
         Hierarchy categoryToDelete = manager.find(Hierarchy.class, Long.parseLong(IdIn3));
         System.out.println(categoryToDelete.getCategoryName() + " (" +
                 categoryToDelete.getLeftKey() + " " + categoryToDelete.getRightKey() + ")");

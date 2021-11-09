@@ -4,22 +4,22 @@ import javax.persistence.*;
 @Table(name = "hierarchy")
 
 public class Hierarchy {
-        @Id
-        @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
 
-        private Long id;
-        // @Column -> прописываем, если название переменной в классе
-        // отличается от названия оного, прописанного в таблице
-        @Column (name = "category_name")
-        private String categoryName;
+    private Long id;
+    // @Column -> прописываем, если название переменной в классе
+    // отличается от названия оного, прописанного в таблице
+    @Column(name = "category_name")
+    private String categoryName;
 
-        @Column (name = "left_key")
-        private Integer leftKey;
+    @Column(name = "left_key")
+    private Integer leftKey;
 
-        @Column (name = "right_key")
-        private Integer rightKey;
+    @Column(name = "right_key")
+    private Integer rightKey;
 
-        private Integer level;
+    private Integer level;
 
     public Long getId() {
         return id;
